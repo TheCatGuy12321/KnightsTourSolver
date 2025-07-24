@@ -1,9 +1,17 @@
 from sys import argv
 from datetime import datetime
+from math import ceil
+from pathlib import Path
 
 # functions to filter symmetries
 def rotate_90(board):
     return [list(row) for row in zip(*board[::-1])]
+
+def rotate_180(board):
+    return rotate_90(rotate_90(board))
+
+def rotate_270(board):
+    return rotate_90(rotate_180(board))
 
 def flip_horizontal(board):
     return [row[::-1] for row in board]
@@ -46,10 +54,15 @@ def filter_unique_solutions(solutions):
     return unique
 
 # Main functions
+
 def copy_branch(branch): # function to replace copy.deepcopy since it's slow
     x, y, board = branch
     new_board = [row[:] for row in board]
     return [x, y, new_board]
+
+def copy_board(board):
+    new_board = [row[:] for row in board]
+    return new_board
 
 def copy_solutions(solutions): # also a function to replace copy.deepcopy, but for nested lists
     new_solutions = []
@@ -64,8 +77,8 @@ def initialize_board(width, height):
 def is_valid_move(x, y, board, width, height):
     return 0 <= x < width and 0 <= y < height and board[y][x] == -1
 
-def solve(board, start_x, start_y, width, height): # Non-recursive function to solve the knights tour, to save on memory
-    solutions = [[start_x, start_y, board]]
+def solve(roots, width, height): # Non-recursive function to solve the knights tour, to save on memory
+    solutions = roots
 
     knight_moves = [(2, 1), (1, 2), (-1, 2), (-2, 1), (-2, -1), (-1, -2), (1, -2), (2, -1)]
     
@@ -104,14 +117,22 @@ def main():
     if len(argv) != 3:
         print("Usage: %s width height"%argv[0])
         exit(0)
+    
     width = int(argv[1])
     height = int(argv[2])
     init_board = initialize_board(width, height)
+
+    starting_states = []
     
-    start_x, start_y = 0, 0  # Starting position of the knight
-    init_board[start_x][start_y] = 1  # Initialize the starting position with the first move
+    for i in range(width):
+        for j in range(height):
+            temporary = copy_board(init_board)
+            temporary[j][i] = 1
+            starting_states.append([i, j, temporary])
     
-    solutions = solve(init_board, start_x, start_y, width, height)
+    starting_states = filter_unique_solutions(starting_states)
+    
+    solutions = solve(starting_states, width, height)
     
     if len(solutions) > 0:
         # Hacky one-liner to pluralise "Solution" if there is more than one
@@ -125,6 +146,7 @@ def main():
         # Output data into a file with the current time as the name
         now = datetime.now()
         filename = "outputs/output-%s.txt"%str(now.strftime("%Y-%m-%d-%H-%M-%S"))
+        Path("outputs").mkdir(parents=True, exist_ok=True) # create the folder "outputs", in case it doesn't exist
         with open(filename, "w") as file:
             file.write(file_output)
 
